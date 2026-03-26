@@ -35,6 +35,11 @@ export interface ChecklistItem {
   id: string;
   text: string;
   done: boolean;
+  priority: 'High' | 'Medium' | 'Low';
+  tags: string[];
+  category?: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export type ChecklistType = 'Smoke' | 'Sanity' | 'Regression' | 'Playwright Automation' | 'API Test Points';
@@ -84,18 +89,27 @@ export interface BddBundle {
   pomClass: string;
 }
 
+export type DefectDimensionCategory = 'Core' | 'Supporting' | 'Optional';
+
 export interface DefectDimension {
   name: string;
+  category: 'Core' | 'Supporting' | 'Optional';
+  weight: number;
   passed: boolean;
+  partial: boolean;
   description: string;
+  customEarned?: number;
 }
 
 export interface DefectReport {
   score: number;
   maxScore: number;
+  confidence: 'High' | 'Medium' | 'Low';
+  validationLevel: 'Valid' | 'Weak' | 'Invalid';
   dimensions: DefectDimension[];
   formattedReport: string;
   missingFields: string[];
+  criticalMissingFields: string[];
 }
 
 export interface SqlDataPack {

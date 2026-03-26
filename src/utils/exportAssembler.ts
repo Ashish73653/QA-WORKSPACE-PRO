@@ -360,6 +360,59 @@ export async function downloadAsDocx(content: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+export async function downloadAsPdf(content: string, filename: string) {
+  const { jsPDF } = await import('jspdf');
+
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const marginLeft = 15;
+  const marginTop = 20;
+  const marginBottom = 20;
+  const lineHeight = 5;
+  const maxWidth = pageWidth - marginLeft * 2;
+  let y = marginTop;
+
+  doc.setFont('Courier', 'normal');
+  doc.setFontSize(9);
+
+  const lines = content.split('\n');
+  for (const line of lines) {
+    const wrapped = doc.splitTextToSize(line || ' ', maxWidth);
+    for (const wLine of wrapped) {
+      if (y + lineHeight > pageHeight - marginBottom) {
+        doc.addPage();
+        y = marginTop;
+      }
+
+      // Detect section headers (═══ or ━━━)
+      if (/^[═━]{4,}/.test(wLine.trim())) {
+        doc.setFont('Courier', 'bold');
+        doc.setTextColor(59, 130, 246);
+        doc.text(wLine, marginLeft, y);
+        doc.setFont('Courier', 'normal');
+        doc.setTextColor(0, 0, 0);
+      } else if (/^\s{2,}\d+\./.test(wLine)) {
+        // TOC or numbered items
+        doc.setFont('Courier', 'bold');
+        doc.text(wLine, marginLeft, y);
+        doc.setFont('Courier', 'normal');
+      } else {
+        doc.text(wLine, marginLeft, y);
+      }
+      y += lineHeight;
+    }
+  }
+
+  doc.save(filename);
+}
+
 export function copyToClipboard(text: string): Promise<void> {
   return navigator.clipboard.writeText(text);
 }
+

@@ -19,7 +19,7 @@ interface AiState {
 
 const DEFAULT_MODELS: Record<AiProvider, string> = {
   openai: 'gpt-4o-mini',
-  gemini: 'gemini-2.0-flash',
+  gemini: 'gemini-2.5-flash',
 };
 
 export const useAiStore = create<AiState>((set, get) => ({
@@ -128,7 +128,7 @@ export async function callAi({ systemPrompt, userPrompt }: AiCallOptions): Promi
           { role: 'user', content: userPrompt },
         ],
         temperature: 0.4,
-        max_tokens: 1200,
+        max_tokens: 4096,
       }),
     });
 
@@ -149,19 +149,14 @@ export async function callAi({ systemPrompt, userPrompt }: AiCallOptions): Promi
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          system_instruction: { parts: [{ text: systemPrompt }] },
-          contents: [{ parts: [{ text: userPrompt }] }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 1200 },
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+          generationConfig: { temperature: 0.4, maxOutputTokens: 4096 },
         }),
       });
     };
 
     let res = await callGeminiModel(model);
-
-    // Best-effort fallback for temporary model exhaustion.
-    if (!res.ok && res.status === 429 && model === 'gemini-2.0-flash') {
-      res = await callGeminiModel('gemini-2.0-flash-lite');
-    }
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

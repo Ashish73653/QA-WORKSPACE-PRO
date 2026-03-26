@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { Sun, Moon, Download, Sparkles, Copy, FileDown, ChevronDown, Check, X } from 'lucide-react';
+import { Sun, Moon, Download, Sparkles, Copy, FileDown, ChevronDown, Check, X, Menu } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import { useAiStore } from '../../store/aiStore';
 import { useToastStore } from '../../store/toastStore';
-import { assembleExport, downloadAsText, downloadAsDocx, copyToClipboard } from '../../utils/exportAssembler';
+import { assembleExport, downloadAsText, downloadAsDocx, downloadAsPdf, copyToClipboard } from '../../utils/exportAssembler';
 import './Topbar.css';
 
 export function Topbar() {
-  const { theme, sidebarExpanded, projectContext, toggleTheme, updateProjectContext } = useAppStore();
+  const { theme, sidebarExpanded, projectContext, toggleTheme, toggleSidebar, updateProjectContext } = useAppStore();
   const { isConfigured, openSettings } = useAiStore();
   const addToast = useToastStore((s) => s.addToast);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -49,6 +49,18 @@ export function Topbar() {
     setShowExportMenu(false);
   };
 
+  const handleExportPdf = async () => {
+    try {
+      const content = assembleExport();
+      const filename = `TestPlan_${projectContext.projectName}_${projectContext.version}_Sprint${projectContext.sprint}.pdf`;
+      await downloadAsPdf(content, filename);
+      addToast({ type: 'success', title: 'PDF downloaded', message: `${filename} saved to your downloads.` });
+    } catch {
+      addToast({ type: 'error', title: 'PDF export failed', message: 'Something went wrong generating the .pdf export.' });
+    }
+    setShowExportMenu(false);
+  };
+
   const startEdit = (field: string) => {
     setEditMode(field);
     setEditValues(projectContext);
@@ -72,6 +84,9 @@ export function Topbar() {
   return (
     <header className={`topbar ${sidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
       <div className="topbar-left">
+        <button className="topbar-menu-btn" onClick={toggleSidebar} aria-label="Toggle Sidebar">
+          <Menu size={20} />
+        </button>
         <span className="topbar-title">VeriFlow</span>
       </div>
 
@@ -248,6 +263,13 @@ export function Topbar() {
                   <div>
                     <div style={{ fontWeight: 500 }}>Download as .docx</div>
                     <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>Microsoft Word document</div>
+                  </div>
+                </button>
+                <button className="export-dropdown-item" onClick={handleExportPdf}>
+                  <FileDown size={16} />
+                  <div>
+                    <div style={{ fontWeight: 500 }}>Download as .pdf</div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>Portable Document Format</div>
                   </div>
                 </button>
                 <button className="export-dropdown-item" onClick={handleExportCopy}>

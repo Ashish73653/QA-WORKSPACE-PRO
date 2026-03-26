@@ -3,10 +3,12 @@ import { Sparkles, Activity, Copy } from 'lucide-react';
 import type { CiHealth, CiSuiteResult } from '../../types';
 import { useCiStore } from '../../store/ciStore';
 import '../pages.css';
+import { safeJsonParse } from '../../utils/safeJson';
 
 function parsePlaywrightJson(jsonText: string): CiHealth | null {
   try {
-    const report = JSON.parse(jsonText);
+    const report = safeJsonParse(jsonText, null as any);
+    if (!report) return null;
     let total = 0, passed = 0, failed = 0, skipped = 0, duration = 0;
     const suites: CiSuiteResult[] = [];
     const fixQueue: string[] = [];

@@ -98,7 +98,11 @@ export function DocumentationHub() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--color-border)' }}>
               <span style={{ fontWeight: 500 }}>.docx (Word Document)</span>
-              <span className="badge badge-info">Coming Soon</span>
+              <span className="badge badge-success">Available</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--color-border)' }}>
+              <span style={{ fontWeight: 500 }}>.pdf (PDF Document)</span>
+              <span className="badge badge-success">Available</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
               <span style={{ fontWeight: 500 }}>Copy to Clipboard</span>

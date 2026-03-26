@@ -1,17 +1,20 @@
 import { useState } from 'react';
-import { Sparkles, Trash2, FileText, Wand2, Loader2 } from 'lucide-react';
+import { Trash2, FileText, Wand2, Loader2 } from 'lucide-react';
 import { useCaseStore } from '../../store/caseStore';
 import { useAiStore, callAi } from '../../store/aiStore';
 import { useToastStore } from '../../store/toastStore';
+import { AiLoader } from '../../components/AiLoader/AiLoader';
 import type { TestCaseType, TestCasePriority, TestCaseStatus } from '../../types';
 import '../pages.css';
+
+import { safeJsonParse } from '../../utils/safeJson';
 
 const TYPES: TestCaseType[] = ['Functional', 'Negative', 'Boundary', 'Security', 'UI', 'Performance', 'Smoke', 'Regression'];
 const PRIORITIES: TestCasePriority[] = ['High', 'Medium', 'Low'];
 const STATUSES: TestCaseStatus[] = ['Todo', 'Pass', 'Fail', 'Skip', 'Blocked'];
 
 export function CaseFormatter() {
-  const { cases, generateCases, updateCaseStatus, removeCase, clearCases, addCases } = useCaseStore();
+  const { cases, updateCaseStatus, removeCase, clearCases, addCases } = useCaseStore();
   const isAiConfigured = useAiStore((s) => s.isConfigured);
   const openSettings = useAiStore((s) => s.openSettings);
   const addToast = useToastStore((s) => s.addToast);
@@ -31,14 +34,7 @@ export function CaseFormatter() {
 
   const passRate = stats.total > 0 ? ((stats.pass / stats.total) * 100).toFixed(1) : '0';
 
-  const handleGenerate = () => {
-    if (!rawText.trim()) return;
-    generateCases(rawText, type, priority);
-    addToast({ type: 'success', title: `${rawText.split(/[\n,]+/).filter(l => l.trim()).length} test cases generated` });
-    setRawText('');
-  };
-
-  const handleAiGenerate = async () => {
+  const handleGenerate = async () => {
     if (!rawText.trim()) return;
     if (!isAiConfigured) {
       openSettings();
@@ -48,12 +44,28 @@ export function CaseFormatter() {
     setIsAiLoading(true);
     try {
       const response = await callAi({
-        systemPrompt: `You are an expert QA test engineer. Given a feature description or test notes, generate comprehensive test cases. Return ONLY a JSON array of objects with these fields: title (string), type (one of: Functional, Negative, Boundary, Security, UI, Performance, Smoke, Regression), priority (one of: High, Medium, Low), expectedResult (string). Generate 8-15 test cases covering positive, negative, edge, and boundary scenarios. Be specific and detailed. Do not include any markdown formatting or code blocks, just the raw JSON array.`,
-        userPrompt: `Generate test cases for:\n${rawText}`,
+        systemPrompt: `You are a senior QA test engineer with 10+ years of experience. Given a feature description, user story, or rough test notes, generate comprehensive, production-ready test cases.
+
+STRICT RULES:
+1. Return ONLY a valid JSON array — no markdown, no code fences, no explanations.
+2. Each object MUST have these fields:
+   - "title" (string): Clear, specific, starts with a verb (Verify, Validate, Check, Ensure, Confirm)
+   - "type" (string): One of: Functional, Negative, Boundary, Security, UI, Performance, Smoke, Regression
+   - "priority" (string): One of: High, Medium, Low
+   - "preconditions" (string): What must be true before executing this test
+   - "expectedResult" (string): Specific, measurable outcome — NOT generic phrases like "works correctly"
+3. Generate 10-15 test cases covering:
+   - Happy path (positive scenarios)
+   - Negative scenarios (invalid input, unauthorized access)
+   - Boundary/edge cases (empty fields, max lengths, special characters)
+   - Security scenarios (SQL injection, XSS, authentication bypass) when applicable
+   - UI/UX scenarios (responsiveness, accessibility) when applicable
+4. Vary the types and priorities realistically — not all should be "Functional/Medium"
+5. Expected results must be SPECIFIC. Bad: "Error shown". Good: "Validation error 'Email is required' displayed below the email field"`,
+        userPrompt: `Generate test cases for:\n${rawText}\n\nDefault type bias: ${type}\nDefault priority bias: ${priority}`,
       });
 
-      const cleaned = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      const parsed = JSON.parse(cleaned);
+      const parsed = safeJsonParse(response, []);
 
       if (Array.isArray(parsed) && parsed.length > 0) {
         let counter = cases.length + 1;
@@ -67,7 +79,7 @@ export function CaseFormatter() {
           sourceModule: 'AI Generated',
         }));
         addCases(newCases);
-        addToast({ type: 'success', title: `${newCases.length} AI-generated test cases added`, message: 'Cases include positive, negative, boundary, and edge scenarios.' });
+        addToast({ type: 'success', title: `${newCases.length} test cases generated`, message: 'Covers positive, negative, boundary, and edge scenarios.' });
         setRawText('');
       } else {
         addToast({ type: 'error', title: 'AI response parsing failed', message: 'Could not parse test cases from AI response.' });
@@ -76,7 +88,7 @@ export function CaseFormatter() {
       if (err.message === 'AI_NOT_CONFIGURED') {
         openSettings();
       } else {
-        addToast({ type: 'error', title: 'AI generation failed', message: err.message || 'Unknown error' });
+        addToast({ type: 'error', title: 'Generation failed', message: err.message || 'Unknown error' });
       }
     } finally {
       setIsAiLoading(false);
@@ -98,7 +110,7 @@ export function CaseFormatter() {
           <div className="card-header">
             <div>
               <h2 className="card-title">Test Notes Input</h2>
-              <p className="card-subtitle">Enter one test idea per line or separate with commas</p>
+              <p className="card-subtitle">Describe the feature, user story, or paste raw test notes</p>
             </div>
           </div>
 
@@ -107,7 +119,7 @@ export function CaseFormatter() {
               className="form-textarea"
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}
-              placeholder={"Verify login with valid credentials\nVerify login with invalid password\nCheck empty email validation\nVerify forgot password link\nTest remember me checkbox"}
+              placeholder={"Describe the feature to generate test cases for, e.g.:\n\nLogin page with email and password fields.\nForgot password link.\nRemember me checkbox.\nOAuth login with Google and GitHub.\nRate limiting after 5 failed attempts."}
               rows={8}
               id="case-input"
             />
@@ -115,7 +127,7 @@ export function CaseFormatter() {
 
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Test Type</label>
+              <label className="form-label">Test Type Bias</label>
               <select
                 className="form-select"
                 value={type}
@@ -128,7 +140,7 @@ export function CaseFormatter() {
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label">Priority</label>
+              <label className="form-label">Priority Bias</label>
               <select
                 className="form-select"
                 value={priority}
@@ -143,23 +155,23 @@ export function CaseFormatter() {
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
-            <button className="btn btn-primary" onClick={handleGenerate} id="generate-cases-btn" disabled={!rawText.trim()}>
-              <Sparkles size={16} />
-              Generate Cases
-            </button>
             <button
-              className="btn btn-secondary"
-              onClick={handleAiGenerate}
-              id="ai-generate-btn"
+              className="btn btn-primary"
+              onClick={handleGenerate}
+              id="generate-cases-btn"
               disabled={isAiLoading || !rawText.trim()}
-              title={isAiConfigured ? 'Use AI to generate comprehensive test cases' : 'Configure AI key first'}
-              style={isAiConfigured ? { borderColor: 'var(--color-primary)', color: 'var(--color-primary)' } : {}}
+              style={isAiConfigured ? {} : { opacity: 0.7 }}
             >
               {isAiLoading
                 ? <><Loader2 size={16} className="spin-icon" /> Generating...</>
-                : <><Wand2 size={16} /> AI Generate</>
+                : <><Wand2 size={16} /> Generate Cases</>
               }
             </button>
+            {!isAiConfigured && (
+              <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', alignSelf: 'center' }}>
+                Configure AI key to generate
+              </span>
+            )}
           </div>
         </div>
 
@@ -174,7 +186,9 @@ export function CaseFormatter() {
             )}
           </div>
 
-          {cases.length > 0 ? (
+          {isAiLoading ? (
+            <AiLoader message="Generating test cases..." subMessage="Analyzing feature for positive, negative & edge scenarios" />
+          ) : cases.length > 0 ? (
             <>
               {/* Pass Rate Circle */}
               <div style={{ textAlign: 'center', padding: '12px 0 20px' }}>
@@ -264,6 +278,11 @@ export function CaseFormatter() {
                         className="status-select"
                         value={tc.status}
                         onChange={(e) => updateCaseStatus(tc.id, e.target.value as TestCaseStatus)}
+                        style={{
+                          backgroundColor: tc.status === 'Pass' ? 'rgba(34, 197, 94, 0.1)' : tc.status === 'Fail' ? 'rgba(239, 68, 68, 0.1)' : tc.status === 'Blocked' ? 'rgba(168, 85, 247, 0.1)' : tc.status === 'Skip' ? 'rgba(234, 179, 8, 0.1)' : 'var(--color-bg-secondary)',
+                          color: tc.status === 'Pass' ? 'var(--color-success)' : tc.status === 'Fail' ? 'var(--color-danger)' : tc.status === 'Blocked' ? '#a855f7' : tc.status === 'Skip' ? 'var(--color-warning)' : 'var(--color-text)',
+                          borderColor: tc.status === 'Pass' ? 'rgba(34, 197, 94, 0.2)' : tc.status === 'Fail' ? 'rgba(239, 68, 68, 0.2)' : tc.status === 'Blocked' ? 'rgba(168, 85, 247, 0.2)' : tc.status === 'Skip' ? 'rgba(234, 179, 8, 0.2)' : 'var(--color-border)',
+                        }}
                       >
                         {STATUSES.map((s) => (
                           <option key={s} value={s}>{s}</option>

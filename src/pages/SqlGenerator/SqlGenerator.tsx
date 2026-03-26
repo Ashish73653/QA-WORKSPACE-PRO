@@ -236,6 +236,10 @@ export function SqlGenerator() {
             </button>
           </div>
 
+          <div className="code-block-header">
+            <span className="code-block-lang">SQL</span>
+            <button className="copy-btn" onClick={handleCopy}><Copy size={12} /> Copy</button>
+          </div>
           <div className="code-block">{getActiveCode()}</div>
         </div>
       ) : (

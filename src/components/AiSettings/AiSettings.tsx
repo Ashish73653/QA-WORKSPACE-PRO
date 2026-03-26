@@ -10,9 +10,7 @@ const MODELS: Record<AiProvider, { value: string; label: string }[]> = {
     { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo (Legacy)' },
   ],
   gemini: [
-    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Fast)' },
-    { value: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite (Fastest)' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Best Quality)' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
   ],
 };
 

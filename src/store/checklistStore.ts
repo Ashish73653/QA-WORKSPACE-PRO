@@ -55,46 +55,94 @@ const TEMPLATES: Record<ChecklistType, string[]> = {
   ],
 };
 
+import { persist } from 'zustand/middleware';
+
 interface ChecklistState {
   items: ChecklistItem[];
   activeType: ChecklistType;
   setActiveType: (type: ChecklistType) => void;
   loadTemplate: (type: ChecklistType) => void;
-  addItem: (text: string) => void;
+  addItem: (text: string, priority?: 'High' | 'Medium' | 'Low', tags?: string[]) => boolean;
+  editItem: (id: string, updates: Partial<ChecklistItem>) => void;
   removeItem: (id: string) => void;
   toggleItem: (id: string) => void;
+  reorderItems: (startIndex: number, endIndex: number) => void;
   clearItems: () => void;
 }
 
-let itemCounter = 1;
+const generateId = () => `CL-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
 
-export const useChecklistStore = create<ChecklistState>((set) => ({
-  items: [],
-  activeType: 'Smoke',
-  setActiveType: (type) => set({ activeType: type }),
-  loadTemplate: (type) => {
-    const templateItems = TEMPLATES[type] || [];
-    const items: ChecklistItem[] = templateItems.map((text) => ({
-      id: `CL-${String(itemCounter++).padStart(3, '0')}`,
-      text,
-      done: false,
-    }));
-    set({ items, activeType: type });
-  },
-  addItem: (text) =>
-    set((state) => ({
-      items: [
-        ...state.items,
-        { id: `CL-${String(itemCounter++).padStart(3, '0')}`, text, done: false },
-      ],
-    })),
-  removeItem: (id) => set((state) => ({ items: state.items.filter((i) => i.id !== id) })),
-  toggleItem: (id) =>
-    set((state) => ({
-      items: state.items.map((i) => (i.id === id ? { ...i, done: !i.done } : i)),
-    })),
-  clearItems: () => {
-    itemCounter = 1;
-    set({ items: [] });
-  },
-}));
+export const useChecklistStore = create<ChecklistState>()(
+  persist(
+    (set, get) => ({
+      items: [],
+      activeType: 'Smoke',
+      setActiveType: (type) => set({ activeType: type }),
+      loadTemplate: (type) => {
+        const templateItems = TEMPLATES[type] || [];
+        const existingItems = get().items;
+        const newItems: ChecklistItem[] = [];
+        
+        templateItems.forEach((text) => {
+          if (!existingItems.some(i => i.text.toLowerCase() === text.toLowerCase())) {
+            newItems.push({
+              id: generateId(),
+              text,
+              done: false,
+              priority: 'Medium',
+              tags: [],
+              category: type,
+              createdAt: Date.now(),
+              updatedAt: Date.now()
+            });
+          }
+        });
+        
+        set({ items: [...existingItems, ...newItems], activeType: type });
+      },
+      addItem: (text, priority = 'Medium', tags = []) => {
+        const state = get();
+        if (state.items.some(i => i.text.toLowerCase() === text.toLowerCase())) {
+          return false; // Duplicate check
+        }
+        
+        set({
+          items: [
+            ...state.items,
+            { 
+              id: generateId(), 
+              text, 
+              done: false,
+              priority,
+              tags,
+              category: state.activeType,
+              createdAt: Date.now(),
+              updatedAt: Date.now()
+            },
+          ],
+        });
+        return true;
+      },
+      editItem: (id, updates) => set((state) => ({
+        items: state.items.map((i) => i.id === id ? { ...i, ...updates, updatedAt: Date.now() } : i)
+      })),
+      removeItem: (id) => set((state) => ({ items: state.items.filter((i) => i.id !== id) })),
+      toggleItem: (id) =>
+        set((state) => ({
+          items: state.items.map((i) => (i.id === id ? { ...i, done: !i.done, updatedAt: Date.now() } : i)),
+        })),
+      reorderItems: (startIndex, endIndex) => set((state) => {
+        const result = Array.from(state.items);
+        const [removed] = result.splice(startIndex, 1);
+        result.splice(endIndex, 0, removed);
+        return { items: result };
+      }),
+      clearItems: () => {
+        set({ items: [] });
+      },
+    }),
+    {
+      name: 'veriflow-checklist-storage',
+    }
+  )
+);

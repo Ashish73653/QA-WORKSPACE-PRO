@@ -4,7 +4,8 @@
   right: 0;
   height: var(--topbar-height);
   background: var(--topbar-bg);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--topbar-border);
   display: flex;
   align-items: center;
@@ -34,6 +35,15 @@
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text);
+}
+
+.topbar-menu-btn {
+  display: none;
+  background: transparent;
+  border: none;
+  color: var(--color-text);
+  cursor: pointer;
+  padding: 4px;
 }
 
 /* Center section */
@@ -217,17 +227,35 @@
   background: var(--color-border-strong);
 }
 
-/* Responsive SVG Logo Sizing */
+/* Responsive Styling */
+@media (max-width: 900px) {
+  .topbar-center {
+    display: none;
+  }
+}
+
 @media (max-width: 768px) {
-  .topbar-logo {
-    height: 24px;
-    max-width: 180px;
+  .topbar {
+    left: 0 !important;
+    padding: 0 var(--space-4);
+  }
+  
+  .topbar-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .topbar-title {
+    display: none;
   }
 }
 
 @media (max-width: 480px) {
-  .topbar-logo {
-    height: 20px;
-    max-width: 150px;
+  .topbar-export-btn span {
+    display: none;
+  }
+  .topbar-export-btn {
+    padding: 0 var(--space-2);
   }
 }

@@ -6,6 +6,7 @@ import { useAppStore } from '../../store/appStore';
 import { useAiStore, callAi } from '../../store/aiStore';
 import type { Partition, PartitionType } from '../../types';
 import '../pages.css';
+import { AiLoader } from '../../components/AiLoader/AiLoader';
 
 function generatePartitions(fieldName: string, rulesText: string): Partition[] {
   const partitions: Partition[] = [];
@@ -212,7 +213,11 @@ export function EquivalencePartitioner() {
       </div>
 
       {/* Results */}
-      {partitions.length > 0 ? (
+      {isAiLoading ? (
+        <div style={{ padding: '60px 0' }}>
+          <AiLoader message="Generating partitions..." subMessage="Calculating valid, invalid, and edge equivalence classes" />
+        </div>
+      ) : partitions.length > 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {validPartitions.length > 0 && (
             <div>
