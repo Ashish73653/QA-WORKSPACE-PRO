@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Sparkles, Copy, Bug, CheckCircle, XCircle, Wand2, Loader2 } from 'lucide-react';
 import { useAiStore, callAi } from '../../store/aiStore';
 import { useToastStore } from '../../store/toastStore';
+import { useDefectStore } from '../../store/defectStore';
 import type { DefectDimension } from '../../types';
 import '../pages.css';
 
@@ -92,9 +93,16 @@ function analyzeDefect(rawText: string): AnalysisResult {
 }
 
 export function DefectAnalyzer() {
-  const [rawText, setRawText] = useState('');
-  const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [aiReport, setAiReport] = useState('');
+  const defectRawText = useDefectStore((s) => s.rawText);
+  const defectReport = useDefectStore((s) => s.report);
+  const defectAiReport = useDefectStore((s) => s.aiReport);
+  const setDefectRawText = useDefectStore((s) => s.setRawText);
+  const setDefectReport = useDefectStore((s) => s.setReport);
+  const setDefectAiReport = useDefectStore((s) => s.setAiReport);
+
+  const [rawText, setRawText] = useState(defectRawText);
+  const [result, setResult] = useState<AnalysisResult | null>(defectReport as AnalysisResult | null);
+  const [aiReport, setAiReport] = useState(defectAiReport);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const isAiConfigured = useAiStore((s) => s.isConfigured);
   const openSettings = useAiStore((s) => s.openSettings);
@@ -102,8 +110,11 @@ export function DefectAnalyzer() {
 
   const handleAnalyze = () => {
     if (!rawText.trim()) return;
-    setResult(analyzeDefect(rawText));
+    const analysis = analyzeDefect(rawText);
+    setResult(analysis);
     setAiReport('');
+    setDefectReport(analysis, rawText);
+    setDefectAiReport('');
   };
 
   const handleAiRewrite = async () => {
@@ -132,6 +143,12 @@ Be specific, professional, and fill in any gaps intelligently from context.`,
         userPrompt: rawText,
       });
       setAiReport(response);
+      setDefectAiReport(response);
+      if (!result) {
+        const analysis = analyzeDefect(rawText);
+        setResult(analysis);
+        setDefectReport(analysis, rawText);
+      }
       addToast({ type: 'success', title: 'AI defect report generated', message: 'Professional JIRA-ready report created from your description.' });
     } catch (err: any) {
       addToast({ type: 'error', title: 'AI rewrite failed', message: err.message });
@@ -164,7 +181,11 @@ Be specific, professional, and fill in any gaps intelligently from context.`,
             <textarea
               className="form-textarea"
               value={rawText}
-              onChange={(e) => setRawText(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setRawText(next);
+                setDefectRawText(next);
+              }}
               placeholder={"Login button not working on Chrome.\n\nSteps:\n1. Open login page\n2. Enter valid credentials\n3. Click login button\n\nExpected: User should be redirected to dashboard\nActual: Nothing happens, page stays on login\n\nSeverity: Major\nEnvironment: Chrome 120, Windows 11\nScreenshot: attached"}
               rows={10}
               id="defect-input"

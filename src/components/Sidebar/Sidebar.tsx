@@ -39,7 +39,7 @@ export function Sidebar() {
         <div className="sidebar-logo-icon">
           <Zap size={20} />
         </div>
-        <span className="sidebar-logo-text">TestFlow Nexus</span>
+        <span className="sidebar-logo-text">VeriFlow</span>
       </div>
 
       <nav className="sidebar-nav">

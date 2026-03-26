@@ -17,10 +17,10 @@ export const useAppStore = create<AppState>((set) => ({
   sidebarExpanded: true,
   activePage: 'case-formatter',
   projectContext: {
-    projectName: 'Checkout',
-    version: 'v1.0',
-    sprint: '12',
-    tester: 'QA Analyst',
+    projectName: 'Project Name',
+    version: '1.0',
+    sprint: '1',
+    tester: 'Tester Name',
   },
   toggleTheme: () =>
     set((state) => {

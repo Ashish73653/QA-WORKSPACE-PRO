@@ -45,10 +45,72 @@ interface AiCallOptions {
   userPrompt: string;
 }
 
+interface ProviderErrorMeta {
+  message: string;
+  code: string;
+}
+
+function extractErrorMeta(err: any): ProviderErrorMeta {
+  return (
+    {
+      message:
+        err?.error?.message ||
+        err?.message ||
+        err?.details?.[0]?.message ||
+        '',
+      code:
+        err?.error?.code ||
+        err?.error?.status ||
+        err?.code ||
+        err?.status ||
+        '',
+    }
+  );
+}
+
+function normalizeAiError(provider: AiProvider, status: number, rawMessage: string, code = ''): string {
+  const msg = String(rawMessage ?? '').toLowerCase();
+  const errCode = String(code ?? '').toLowerCase();
+
+  if (status === 401 || msg.includes('api key not valid') || msg.includes('invalid api key')) {
+    return `${provider === 'gemini' ? 'Gemini' : 'OpenAI'} API key is invalid. Please verify your key in AI Settings.`;
+  }
+
+  if (status === 403 || msg.includes('permission')) {
+    return `${provider === 'gemini' ? 'Gemini' : 'OpenAI'} request was blocked by permissions. Check key access and project configuration.`;
+  }
+
+  if (status === 429 || msg.includes('quota exceeded') || msg.includes('rate limit') || errCode.includes('resource_exhausted')) {
+    const retryMatch = rawMessage.match(/retry in\s+([0-9.]+)s/i);
+    const retryHint = retryMatch ? ` Retry in ~${Math.ceil(Number(retryMatch[1]))}s.` : '';
+
+    if (errCode.includes('insufficient_quota') || msg.includes('insufficient_quota')) {
+      return `${provider === 'gemini' ? 'Gemini' : 'OpenAI'} account quota/billing limit is exhausted.${retryHint} Check your provider billing and quota settings.`;
+    }
+
+    if (errCode.includes('rate_limit') || msg.includes('rate limit')) {
+      return `${provider === 'gemini' ? 'Gemini' : 'OpenAI'} rate limit is temporarily reached.${retryHint} Try again shortly or switch to a lighter model.`;
+    }
+
+    if (provider === 'gemini') {
+      return `Gemini request limit is temporarily reached.${retryHint} Try again shortly, or switch model/provider.`;
+    }
+
+    return `OpenAI request limit is temporarily reached.${retryHint} Try again shortly, or use a lower-cost model.`;
+  }
+
+  if (status >= 500) {
+    return `${provider === 'gemini' ? 'Gemini' : 'OpenAI'} service is temporarily unavailable. Please try again shortly.`;
+  }
+
+  return rawMessage || `${provider === 'gemini' ? 'Gemini' : 'OpenAI'} API error (${status}).`;
+}
+
 export async function callAi({ systemPrompt, userPrompt }: AiCallOptions): Promise<string> {
   const { provider, apiKey, model } = useAiStore.getState();
+  const normalizedApiKey = apiKey.trim();
 
-  if (!apiKey) {
+  if (!normalizedApiKey) {
     throw new Error('AI_NOT_CONFIGURED');
   }
 
@@ -57,7 +119,7 @@ export async function callAi({ systemPrompt, userPrompt }: AiCallOptions): Promi
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${normalizedApiKey}`,
       },
       body: JSON.stringify({
         model,
@@ -66,13 +128,14 @@ export async function callAi({ systemPrompt, userPrompt }: AiCallOptions): Promi
           { role: 'user', content: userPrompt },
         ],
         temperature: 0.4,
-        max_tokens: 4096,
+        max_tokens: 1200,
       }),
     });
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.error?.message || `OpenAI API error: ${res.status}`);
+      const { message, code } = extractErrorMeta(err);
+      throw new Error(normalizeAiError('openai', res.status, message, code));
     }
 
     const data = await res.json();
@@ -80,20 +143,30 @@ export async function callAi({ systemPrompt, userPrompt }: AiCallOptions): Promi
   }
 
   if (provider === 'gemini') {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ parts: [{ text: userPrompt }] }],
-        generationConfig: { temperature: 0.4, maxOutputTokens: 4096 },
-      }),
-    });
+    const callGeminiModel = async (modelName: string) => {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${normalizedApiKey}`;
+      return fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ parts: [{ text: userPrompt }] }],
+          generationConfig: { temperature: 0.4, maxOutputTokens: 1200 },
+        }),
+      });
+    };
+
+    let res = await callGeminiModel(model);
+
+    // Best-effort fallback for temporary model exhaustion.
+    if (!res.ok && res.status === 429 && model === 'gemini-2.0-flash') {
+      res = await callGeminiModel('gemini-2.0-flash-lite');
+    }
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Gemini API error: ${res.status}`);
+      const { message, code } = extractErrorMeta(err);
+      throw new Error(normalizeAiError('gemini', res.status, message, code));
     }
 
     const data = await res.json();

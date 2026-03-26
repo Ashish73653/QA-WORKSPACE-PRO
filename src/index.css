@@ -1,4 +1,4 @@
-/* ===== TestFlow Nexus — Design System ===== */
+/* ===== VeriFlow — Design System ===== */
 
 /* --- Reset --- */
 *, *::before, *::after {
@@ -43,8 +43,8 @@
   --sidebar-width-collapsed: 68px;
 
   /* Topbar */
-  --topbar-bg: #FFFFFF;
-  --topbar-border: #E2E8F0;
+  --topbar-bg: rgba(255, 255, 255, 0.7);
+  --topbar-border: rgba(0, 0, 0, 0.06);
   --topbar-height: 56px;
 
   /* Typography */
@@ -84,11 +84,12 @@
   --radius-xl: 16px;
   --radius-full: 9999px;
 
-  /* Shadows */
+  /* Shadows — Premium SaaS */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.03);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.05), 0 4px 6px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.06), 0 3px 10px rgba(0, 0, 0, 0.04);
+  --shadow-premium: 0 20px 40px rgba(0, 0, 0, 0.08), 0 8px 16px rgba(0, 0, 0, 0.05);
 
   /* Transitions */
   --transition-fast: 150ms ease;
@@ -122,7 +123,7 @@
   --color-danger-subtle: rgba(220, 38, 38, 0.15);
   --color-info-subtle: rgba(14, 165, 233, 0.15);
 
-  --topbar-bg: #0F172A;
+  --topbar-bg: rgba(2, 6, 23, 0.7);
   --topbar-border: rgba(255, 255, 255, 0.06);
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -244,4 +245,7 @@ button:disabled {
   cursor: not-allowed;
   pointer-events: none;
 }
+
+
+
 

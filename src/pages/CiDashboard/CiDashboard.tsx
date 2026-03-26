@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Sparkles, Activity, Copy } from 'lucide-react';
 import type { CiHealth, CiSuiteResult } from '../../types';
+import { useCiStore } from '../../store/ciStore';
 import '../pages.css';
 
 function parsePlaywrightJson(jsonText: string): CiHealth | null {
@@ -76,9 +77,16 @@ function parsePlaywrightJson(jsonText: string): CiHealth | null {
 }
 
 export function CiDashboard() {
-  const [jsonInput, setJsonInput] = useState('');
-  const [prevJsonInput, setPrevJsonInput] = useState('');
-  const [result, setResult] = useState<CiHealth | null>(null);
+  const storedCurrentJson = useCiStore((s) => s.currentJson);
+  const storedPreviousJson = useCiStore((s) => s.previousJson);
+  const storedHealth = useCiStore((s) => s.health);
+  const setStoredCurrentJson = useCiStore((s) => s.setCurrentJson);
+  const setStoredPreviousJson = useCiStore((s) => s.setPreviousJson);
+  const setStoredHealth = useCiStore((s) => s.setHealth);
+
+  const [jsonInput, setJsonInput] = useState(storedCurrentJson);
+  const [prevJsonInput, setPrevJsonInput] = useState(storedPreviousJson);
+  const [result, setResult] = useState<CiHealth | null>(storedHealth);
   const [error, setError] = useState('');
 
   const handleParse = () => {
@@ -102,6 +110,7 @@ export function CiDashboard() {
     }
 
     setResult(parsed);
+    setStoredHealth(parsed);
   };
 
   const handleCopySummary = () => {
@@ -128,7 +137,11 @@ export function CiDashboard() {
             <textarea
               className="form-textarea"
               value={jsonInput}
-              onChange={(e) => setJsonInput(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setJsonInput(next);
+                setStoredCurrentJson(next);
+              }}
               placeholder={'Paste Playwright JSON reporter output here...\n\n{\n  "suites": [...],\n  "stats": { "tests": 42, "passes": 38, "failures": 4 }\n}'}
               rows={6}
               style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}
@@ -140,7 +153,11 @@ export function CiDashboard() {
             <textarea
               className="form-textarea"
               value={prevJsonInput}
-              onChange={(e) => setPrevJsonInput(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setPrevJsonInput(next);
+                setStoredPreviousJson(next);
+              }}
               placeholder="Paste previous run JSON here for flaky test detection..."
               rows={6}
               style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}

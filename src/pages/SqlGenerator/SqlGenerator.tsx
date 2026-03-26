@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Sparkles, Copy, Database } from 'lucide-react';
+import { useSqlStore } from '../../store/sqlStore';
 import '../pages.css';
 
 interface SqlResult {
@@ -137,9 +138,14 @@ function generateSqlData(tableName: string, columns: Column[]): SqlResult {
 }
 
 export function SqlGenerator() {
-  const [sqlInput, setSqlInput] = useState('');
+  const storedSqlInput = useSqlStore((s) => s.sqlInput);
+  const storedDataPack = useSqlStore((s) => s.dataPack);
+  const setStoredSqlInput = useSqlStore((s) => s.setSqlInput);
+  const setStoredDataPack = useSqlStore((s) => s.setDataPack);
+
+  const [sqlInput, setSqlInput] = useState(storedSqlInput);
   const [activeTab, setActiveTab] = useState<'valid' | 'invalid' | 'queries'>('valid');
-  const [result, setResult] = useState<SqlResult | null>(null);
+  const [result, setResult] = useState<SqlResult | null>(storedDataPack as SqlResult | null);
   const [error, setError] = useState('');
 
   const handleGenerate = () => {
@@ -150,7 +156,9 @@ export function SqlGenerator() {
       setError('Could not parse the CREATE TABLE statement. Please check the syntax and try again.');
       return;
     }
-    setResult(generateSqlData(parsed.tableName, parsed.columns));
+    const generated = generateSqlData(parsed.tableName, parsed.columns);
+    setResult(generated);
+    setStoredDataPack(generated);
   };
 
   const getActiveCode = () => {
@@ -184,7 +192,11 @@ export function SqlGenerator() {
           <textarea
             className="form-textarea"
             value={sqlInput}
-            onChange={(e) => setSqlInput(e.target.value)}
+            onChange={(e) => {
+              const next = e.target.value;
+              setSqlInput(next);
+              setStoredSqlInput(next);
+            }}
             placeholder={`CREATE TABLE users (\n  id INT PRIMARY KEY NOT NULL,\n  username VARCHAR(50) NOT NULL UNIQUE,\n  email VARCHAR(100) NOT NULL,\n  age INT,\n  created_at DATE NOT NULL DEFAULT CURRENT_DATE,\n  balance DECIMAL(10,2)\n);`}
             rows={8}
             style={{ fontFamily: 'var(--font-mono)' }}

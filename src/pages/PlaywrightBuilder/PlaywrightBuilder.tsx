@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Sparkles, Copy, Play, Wand2, Loader2, Download } from 'lucide-react';
 import { useAiStore, callAi } from '../../store/aiStore';
 import { useToastStore } from '../../store/toastStore';
+import { usePlaywrightStore } from '../../store/playwrightStore';
 import '../pages.css';
 
 function generateBdd(userStory: string, criteria: string, locatorHint: string) {
@@ -59,11 +60,20 @@ function generateBdd(userStory: string, criteria: string, locatorHint: string) {
 }
 
 export function PlaywrightBuilder() {
-  const [userStory, setUserStory] = useState('');
-  const [criteria, setCriteria] = useState('');
-  const [locatorHint, setLocatorHint] = useState('');
+  const storedUserStory = usePlaywrightStore((s) => s.userStory);
+  const storedCriteria = usePlaywrightStore((s) => s.criteria);
+  const storedLocatorHint = usePlaywrightStore((s) => s.locatorHint);
+  const storedGenerated = usePlaywrightStore((s) => s.generated);
+  const setStoredUserStory = usePlaywrightStore((s) => s.setUserStory);
+  const setStoredCriteria = usePlaywrightStore((s) => s.setCriteria);
+  const setStoredLocatorHint = usePlaywrightStore((s) => s.setLocatorHint);
+  const setStoredGenerated = usePlaywrightStore((s) => s.setGenerated);
+
+  const [userStory, setUserStory] = useState(storedUserStory);
+  const [criteria, setCriteria] = useState(storedCriteria);
+  const [locatorHint, setLocatorHint] = useState(storedLocatorHint);
   const [activeTab, setActiveTab] = useState<'feature' | 'steps' | 'locators' | 'pom'>('feature');
-  const [generated, setGenerated] = useState<ReturnType<typeof generateBdd> | null>(null);
+  const [generated, setGenerated] = useState<ReturnType<typeof generateBdd> | null>(storedGenerated);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const isAiConfigured = useAiStore((s) => s.isConfigured);
   const openSettings = useAiStore((s) => s.openSettings);
@@ -71,7 +81,9 @@ export function PlaywrightBuilder() {
 
   const handleGenerate = () => {
     if (!userStory.trim() || !criteria.trim()) return;
-    setGenerated(generateBdd(userStory, criteria, locatorHint));
+    const generatedBundle = generateBdd(userStory, criteria, locatorHint);
+    setGenerated(generatedBundle);
+    setStoredGenerated(generatedBundle);
     setActiveTab('feature');
     addToast({ type: 'success', title: 'BDD artifacts generated', message: 'Feature file, step definitions, locators, and POM class created.' });
   };
@@ -96,21 +108,25 @@ Make the output realistic, production-ready, and follow Playwright best practice
       const cleaned = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       try {
         const parsed = JSON.parse(cleaned);
-        setGenerated({
+        const generatedBundle = {
           featureText: parsed.featureText || '',
           stepDefText: parsed.stepDefText || '',
           locatorSuggestions: parsed.locatorSuggestions || '',
           pomClass: parsed.pomClass || '',
-        });
+        };
+        setGenerated(generatedBundle);
+        setStoredGenerated(generatedBundle);
         addToast({ type: 'success', title: 'AI BDD artifacts generated', message: 'Production-ready Playwright automation artifacts created.' });
       } catch {
         // If JSON parse fails, use the raw response as feature text
-        setGenerated({
+        const generatedBundle = {
           featureText: cleaned,
           stepDefText: '// AI response could not be parsed as JSON. Raw output shown in Feature tab.',
           locatorSuggestions: '',
           pomClass: '',
-        });
+        };
+        setGenerated(generatedBundle);
+        setStoredGenerated(generatedBundle);
         addToast({ type: 'warning', title: 'Partial AI output', message: 'Response shown in Feature tab — could not split into separate artifacts.' });
       }
       setActiveTab('feature');
@@ -162,17 +178,17 @@ Make the output realistic, production-ready, and follow Playwright best practice
           <div className="card-header"><h2 className="card-title">User Story Input</h2></div>
           <div className="form-group">
             <label className="form-label">User Story</label>
-            <textarea className="form-textarea" value={userStory} onChange={(e) => setUserStory(e.target.value)}
+            <textarea className="form-textarea" value={userStory} onChange={(e) => { const next = e.target.value; setUserStory(next); setStoredUserStory(next); }}
               placeholder="As a registered user I want to reset my password so that I can regain access to my account" rows={3} id="bdd-story" />
           </div>
           <div className="form-group">
             <label className="form-label">Acceptance Criteria (one per line)</label>
-            <textarea className="form-textarea" value={criteria} onChange={(e) => setCriteria(e.target.value)}
+            <textarea className="form-textarea" value={criteria} onChange={(e) => { const next = e.target.value; setCriteria(next); setStoredCriteria(next); }}
               placeholder={"User can click 'Forgot Password' link\nUser receives reset email within 60 seconds\nReset link expires after 24 hours\nUser can set a new password meeting requirements"} rows={5} id="bdd-criteria" />
           </div>
           <div className="form-group">
             <label className="form-label">Locator Hint (optional)</label>
-            <input className="form-input" value={locatorHint} onChange={(e) => setLocatorHint(e.target.value)} placeholder="e.g., #login-form .submit-btn" id="bdd-locator" />
+            <input className="form-input" value={locatorHint} onChange={(e) => { const next = e.target.value; setLocatorHint(next); setStoredLocatorHint(next); }} placeholder="e.g., #login-form .submit-btn" id="bdd-locator" />
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button className="btn btn-primary" onClick={handleGenerate} disabled={!userStory.trim() || !criteria.trim()}>
